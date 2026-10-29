@@ -273,18 +273,25 @@ body { margin: 0; background: var(--page); color: var(--ink); font-family: var(-
   }
   if (poster) poster.addEventListener('click', start);
   if (reduce) return;
-  var player = document.querySelector('.player');
-  if ('IntersectionObserver' in window) {
-    var io = new IntersectionObserver(function (es) {
-      es.forEach(function (e) {
-        if (e.intersectionRatio >= 0.66 || (e.rootBounds && e.intersectionRect.height >= 0.66 * e.rootBounds.height)) {
-          io.disconnect();
-          timers.push(setTimeout(intro, 700));   // sweep fills the rest of the ~2s beat
-        }
-      });
-    }, { threshold: [0, 0.33, 0.5, 0.66, 0.8, 1] });
-    io.observe(player);
-  } else { start(); }
+  // start once most of the player is on screen and the visitor has stopped scrolling for a beat
+  var player = document.querySelector('.player'), settle = null, armed = true;
+  function inView() {
+    var r = player.getBoundingClientRect(), vh = window.innerHeight || document.documentElement.clientHeight;
+    var seen = Math.max(0, Math.min(r.bottom, vh) - Math.max(r.top, 0));
+    return seen >= 0.85 * r.height || seen >= 0.85 * vh;   // 85% of the player, or it fills a short window
+  }
+  function check() {
+    if (!armed || started) return;
+    if (inView()) {
+      armed = false;
+      window.removeEventListener('scroll', onScroll); window.removeEventListener('resize', onScroll);
+      timers.push(setTimeout(intro, 400));
+    }
+  }
+  function onScroll() { clearTimeout(settle); settle = setTimeout(check, 300); }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  window.addEventListener('resize', onScroll);
+  onScroll();
 })();
 </script>
 </body>
